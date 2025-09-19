@@ -1,0 +1,107 @@
+sources:
+  hotel_transactional_pg_source:
+    kind: postgres
+    host: ${POSTGRES_HOST}
+    port: ${POSTGRES_PORT}
+    database: ${POSTGRES_DB}
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+
+  hotel_analytics_bq_source:
+    kind: bigquery
+    project: ${PROJECT_ID}
+
+tools:
+  find_available_rooms:
+    kind: postgres-sql
+    source: hotel_transactional_pg_source
+    description: "Find available rooms for a given date range and room type."
+    parameters:
+      - name: start_date
+        type: string
+        description: "The desired check-in date in YYYY-MM-DD format."
+      - name: end_date
+        type: string
+        description: "The desired check-out date in YYYY-MM-DD format."
+      - name: room_type
+        type: string
+        description: "The desired room type (e.g., 'Standard Queen', 'Deluxe King')."
+    statement: >
+      SELECT r.id, r.room_number, rt.name as room_type, rt.daily_rate
+      FROM rooms r
+      JOIN room_types rt ON r.room_type_id = rt.id
+      WHERE rt.name ILIKE $3 AND r.id NOT IN (
+        SELECT room_id FROM bookings
+        WHERE status NOT IN ('Checked-Out', 'Cancelled')
+        AND (checkin_date, checkout_date) OVERLAPS (CAST($1 AS DATE), CAST($2 AS DATE))
+      );
+
+  create_booking:
+    kind: postgres-sql
+    source: hotel_transactional_pg_source
+    description: "Create a new booking for a guest in a specific room."
+    parameters:
+      - name: guest_id
+        type: integer
+        description: "The ID of the guest making the booking."
+      - name: room_id
+        type: integer
+        description: "The ID of the room to be booked."
+      - name: checkin_date
+        type: string
+        description: "The check-in date in YYYY-MM-DD format."
+      - name: checkout_date
+        type: string
+        description: "The check-out date in YYYY-MM-DD format."
+    statement: >
+      INSERT INTO bookings (guest_id, room_id, checkin_date, checkout_date, total_amount)
+      VALUES ($1, $2, CAST($3 AS DATE), CAST($4 AS DATE),
+        (SELECT daily_rate FROM rooms JOIN room_types ON rooms.room_type_id = room_types.id WHERE rooms.id = $2)
+        * (CAST($4 AS DATE) - CAST($3 AS DATE))
+      ) RETURNING id as booking_id, 'Booking Confirmed' as status;
+
+  get_monthly_revenue:
+    kind: bigquery-sql
+    source: hotel_analytics_bq_source
+    description: "Get the total monthly revenue for a given year."
+    parameters:
+      - name: year
+        type: integer
+        description: "The year to analyze (e.g., 2025)."
+    statement: >
+      SELECT
+        EXTRACT(MONTH FROM booking_date) as month,
+        SUM(total_revenue) as total_revenue
+      FROM `hotel_analytics_dataset.booking_analytics`
+      WHERE EXTRACT(YEAR FROM booking_date) = @year
+      GROUP BY month
+      ORDER BY month;
+
+  get_top_booking_channels:
+    kind: bigquery-sql
+    source: hotel_analytics_bq_source
+    description: "Find the top booking channels by revenue for a given period."
+    parameters:
+      - name: start_date
+        type: string
+        description: "The start date of the period in YYYY-MM-DD format."
+      - name: end_date
+        type: string
+        description: "The end date of the period in YYYY-MM-DD format."
+    statement: >
+      SELECT
+        booking_channel,
+        SUM(total_revenue) as revenue,
+        COUNT(booking_id) as number_of_bookings
+      FROM `hotel_analytics_dataset.booking_analytics`
+      WHERE booking_date BETWEEN CAST(@start_date AS DATE) AND CAST(@end_date AS DATE)
+      GROUP BY booking_channel
+      ORDER BY revenue DESC;
+
+toolsets:
+  hotel_operations:
+    - find_available_rooms
+    - create_booking
+  hotel_analytics:
+    - get_monthly_revenue
+    - get_top_booking_channels
