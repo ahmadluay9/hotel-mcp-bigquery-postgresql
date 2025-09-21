@@ -27,6 +27,8 @@ The application is built using **Streamlit** for the user interface, Google's **
 hotel-mcp-bigquery-postgresql/
 ├── hotel_agent_app/
 │   └── agent.py         # Core ADK agent definition and instructions.
+├── mcp-toolbox/
+│   └── tools.yaml       # Defines agent's skills (tools) via MCP.
 ├── .env                 # Local environment variables (credentials, configs).
 ├── README.md            # This project overview file.
 ├── .gitignore           # Specifies files for Git to ignore.
@@ -54,10 +56,10 @@ The application uses a modern, decoupled architecture:
 
 - **Session Management**: The `DatabaseSessionService` from the ADK is used to persist chat history in the PostgreSQL database.
 
-# Reference
+## Reference
 
-[1. Deploy MCP to Cloud Run]("https://googleapis.github.io/genai-toolbox/how-to/deploy_toolbox/")
+[1. Deploy MCP to Cloud Run](https://googleapis.github.io/genai-toolbox/how-to/deploy_toolbox/)
 
-[2. Quickstart (MCP with BigQuery)]("https://googleapis.github.io/genai-toolbox/samples/bigquery/mcp_quickstart/")
+[2. Quickstart (MCP with BigQuery)](https://googleapis.github.io/genai-toolbox/samples/bigquery/mcp_quickstart/)
 
-[3. Build a Travel Agent using MCP Toolbox for Databases and Agent Development Kit (ADK)]("https://codelabs.developers.google.com/travel-agent-mcp-toolbox-adk?hl=en")
+[3. Build a Travel Agent using MCP Toolbox for Databases and Agent Development Kit (ADK)](https://codelabs.developers.google.com/travel-agent-mcp-toolbox-adk?hl=en)
