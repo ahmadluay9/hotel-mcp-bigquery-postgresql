@@ -40,7 +40,14 @@ hotel-mcp-bigquery-postgresql/
 ```
 
 ## Architecture
-![alt text](image.png)
+### System Architecture
+<img width="3008" height="1680" alt="image" src="https://github.com/user-attachments/assets/b8e70143-1477-47c5-a74a-f36ee50b1dec" />
+
+### AI Agentic Workflow
+<img width="943" height="868" alt="image" src="https://github.com/user-attachments/assets/51454b1f-0f12-4a7a-830a-e431036e3810" />
+
+### MCP Server - Database Toolbox
+<img width="2684" height="1968" alt="image" src="https://github.com/user-attachments/assets/c9846cd5-4411-4799-acbc-26c3f2238edf" />
 
 The application uses a modern, decoupled architecture:
 
