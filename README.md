@@ -1,4 +1,5 @@
 # Hotel Management AI Assistant
+![Hotel Management Assistant - Google Chrome 2025-09-23 09-45-03](https://github.com/user-attachments/assets/f1ec0c57-c9fa-408f-8934-5ac366e1e08c)
 This project is a sophisticated AI-powered chatbot designed to act as a Hotel Management Assistant. It provides a conversational interface for both operational tasks (like checking room availability) and analytical queries (like reviewing monthly revenue).
 
 The application is built using **Streamlit** for the user interface, Google's **Agent Development Kit (ADK)** for the core agent logic, and connects to a dual-database backend: **PostgreSQL** for real-time transactional data and **Google BigQuery** for business intelligence and analytics.
