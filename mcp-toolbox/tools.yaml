@@ -15,7 +15,19 @@ tools:
   find_available_rooms:
     kind: postgres-sql
     source: hotel_transactional_pg_source
-    description: "Find available rooms for a given date range and room type."
+    description: |
+      "Find available rooms for a given date range and room type.
+      Example: [{
+        "id": "3",
+        "room_number": "103",
+        "room_type": "Standard Queen",
+        "daily_rate": "150.0"
+      }, {
+        "id": "4",
+        "room_number": "105",
+        "room_type": "Standard Queen",
+        "daily_rate": "150.0"
+      }]"
     parameters:
       - name: start_date
         type: string
@@ -39,7 +51,12 @@ tools:
   create_booking:
     kind: postgres-sql
     source: hotel_transactional_pg_source
-    description: "Create a new booking for a guest in a specific room."
+    description: | 
+      "Create a new booking for a guest in a specific room.
+      Example: [{
+        "booking_id": "3",
+        "status": "Booking Confirmed"
+      }]"
     parameters:
       - name: guest_id
         type: integer
@@ -63,7 +80,18 @@ tools:
   get_monthly_revenue:
     kind: bigquery-sql
     source: hotel_analytics_bq_source
-    description: "Get the total monthly revenue for a given year."
+    description: |
+      "Get the total monthly revenue for a given year.
+      Example: [{
+        "month": "1",
+        "total_revenue": "1211.5"
+      }, {
+        "month": "2",
+        "total_revenue": "1311.5"
+      }, {
+        "month": "3",
+        "total_revenue": "1123"
+      }]"
     parameters:
       - name: year
         type: integer
@@ -80,7 +108,17 @@ tools:
   get_top_booking_channels:
     kind: bigquery-sql
     source: hotel_analytics_bq_source
-    description: "Find the top booking channels by revenue for a given period."
+    description: |
+      "Find the top booking channels by revenue for a given period.
+      Example: [{
+        "booking_channel": "Travel Agent",
+        "revenue": "750",
+        "number_of_bookings": "1"
+      }, {
+        "booking_channel": "Website",
+        "revenue": "661.5",
+        "number_of_bookings": "1"
+      }]"
     parameters:
       - name: start_date
         type: string

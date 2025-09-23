@@ -40,6 +40,8 @@ hotel-mcp-bigquery-postgresql/
 ```
 
 ## Architecture
+![alt text](image.png)
+
 The application uses a modern, decoupled architecture:
 
 - **Frontend**: A Python-based web interface created with **Streamlit** (`app.py`).
