@@ -129,7 +129,7 @@ if "session_initialized" not in st.session_state:
             app_name=runner.app_name,
             user_id=USER_ID,
             session_id=st.session_state.session_id,
-            state={"date": get_current_date()}
+            state={"current_date": get_current_date()}
         ))
         st.session_state.session_initialized = True
     except Exception as e:
@@ -171,10 +171,10 @@ if len(st.session_state.messages) == 1:
     st.caption("Or, start with one of these questions:")
     col1, col2 = st.columns(2)
     example_questions = [
-        "Find available 'Deluxe King' rooms from 2025-10-10 to 2025-10-15",
-        "What was the total revenue for each month in 2025?",
-        "What were the top booking channels last month?",
-        "Find available rooms for tomorrow for 2 nights"
+        "Find available Standard Queen rooms for 1 night during this coming weekend",
+        "What was the total revenue for each month this year?",
+        "What were the top booking channels this year?",
+        "Create a new booking for guest 2 in room 1 for next wednesday, for 1 night."
     ]
     if col1.button(example_questions[0], use_container_width=True):
         prompt_to_process = example_questions[0]
