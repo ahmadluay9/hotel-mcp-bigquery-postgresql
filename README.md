@@ -42,7 +42,7 @@ hotel-mcp-bigquery-postgresql/
 
 ## Architecture
 ### System Architecture
-<img width="3808" height="2056" alt="image" src="https://github.com/user-attachments/assets/449541f8-7766-4974-854b-13b757721e5a" />
+<img width="3808" height="2056" alt="image" src="https://github.com/user-attachments/assets/f680074a-43db-4ab3-9857-8e3b07eae71a" />
 
 ### AI Agentic Workflow
 <img width="943" height="868" alt="image" src="https://github.com/user-attachments/assets/51454b1f-0f12-4a7a-830a-e431036e3810" />
