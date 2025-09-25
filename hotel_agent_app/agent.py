@@ -1,9 +1,15 @@
+import logging
 from google.adk.agents import Agent
 from google.adk.tools.agent_tool import AgentTool
 from toolbox_core import ToolboxSyncClient
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 model=os.getenv("MODEL")
 
