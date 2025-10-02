@@ -1,6 +1,7 @@
 # Hotel Management AI Assistant
-![Hotel Management Assistant - Google Chrome 2025-09-23 09-45-03](https://github.com/user-attachments/assets/f1ec0c57-c9fa-408f-8934-5ac366e1e08c)
+![hotel-mcp-bq](https://github.com/user-attachments/assets/3fee4eb6-9e70-40e1-b300-daab429e762f)
 This project is a sophisticated AI-powered chatbot designed to act as a Hotel Management Assistant. It provides a conversational interface for both operational tasks (like checking room availability) and analytical queries (like reviewing monthly revenue).
+
 
 The application is built using **Streamlit** for the user interface, Google's **Agent Development Kit (ADK)** for the core agent logic, and connects to a dual-database backend: **PostgreSQL** for real-time transactional data and **Google BigQuery** for business intelligence and analytics.
 
@@ -58,7 +59,7 @@ hotel-mcp-bigquery-postgresql/
 ├── Dockerfile           
 ├── app.py               
 ├── notebook.ipynb       
-└── requirements.txt     # List of Python dependencies.
+└── requirements.txt
 ```
 
 - `hotel_agent_app/`: The main Python package for the AI agent.
