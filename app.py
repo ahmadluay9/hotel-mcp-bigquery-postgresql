@@ -2,7 +2,8 @@ import streamlit as st
 import asyncio
 from hotel_agent_app.agent import root_agent
 from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService, DatabaseSessionService
+from google.adk.sessions import DatabaseSessionService
+from google.adk.artifacts import GcsArtifactService
 from google.genai import types as genai_types
 import datetime
 import os
@@ -108,10 +109,12 @@ st.markdown("""
 @st.cache_resource
 def setup_adk_runner():
     session_service = DatabaseSessionService(db_url=DATABASE_URL)
+    artifact_service = GcsArtifactService(bucket_name=os.getenv("GCS_BUCKET_NAME"))
     runner = Runner(
         agent=root_agent,
         app_name="hotel_management_app",
-        session_service=session_service
+        session_service=session_service,
+        artifact_service=artifact_service
     )
     return runner, session_service
 
@@ -129,7 +132,11 @@ if "session_initialized" not in st.session_state:
             app_name=runner.app_name,
             user_id=USER_ID,
             session_id=st.session_state.session_id,
-            state={"current_date": get_current_date()}
+            state={
+                "current_date": get_current_date(),
+                "analytics_summary": "",  
+                "operation_summary": ""   
+                }
         ))
         st.session_state.session_initialized = True
     except Exception as e:
@@ -166,24 +173,24 @@ for message in st.session_state.messages:
 prompt_to_process = None
 
 # Display example question buttons only at the start of the conversation
-if len(st.session_state.messages) == 1:
-    st.markdown("---")
-    st.caption("Or, start with one of these questions:")
-    col1, col2 = st.columns(2)
-    example_questions = [
-        "Find available Standard Queen rooms for 1 night during this coming weekend",
-        "What was the total revenue for each month this year?",
-        "What were the top booking channels this year?",
-        "Create a new booking for guest 2 in room 1 for next wednesday, for 1 night."
-    ]
-    if col1.button(example_questions[0], use_container_width=True):
-        prompt_to_process = example_questions[0]
-    if col2.button(example_questions[1], use_container_width=True):
-        prompt_to_process = example_questions[1]
-    if col1.button(example_questions[2], use_container_width=True):
-        prompt_to_process = example_questions[2]
-    if col2.button(example_questions[3], use_container_width=True):
-        prompt_to_process = example_questions[3]
+
+st.markdown("---")
+st.caption("Or, start with one of these questions:")
+col1, col2 = st.columns(2)
+example_questions = [
+    "Find available Standard Queen rooms for 1 night during this coming weekend",
+    "What was the total revenue for each month this year?",
+    "What were the top booking channels this year?",
+    "Create a new booking for guest 2 in room 1 for next wednesday, for 1 night."
+]
+if col1.button(example_questions[0], use_container_width=True):
+    prompt_to_process = example_questions[0]
+if col2.button(example_questions[1], use_container_width=True):
+    prompt_to_process = example_questions[1]
+if col1.button(example_questions[2], use_container_width=True):
+    prompt_to_process = example_questions[2]
+if col2.button(example_questions[3], use_container_width=True):
+    prompt_to_process = example_questions[3]
 
 if chat_input_prompt := st.chat_input("Ask about rooms, bookings, or analytics..."):
     prompt_to_process = chat_input_prompt
@@ -191,7 +198,9 @@ if chat_input_prompt := st.chat_input("Ask about rooms, bookings, or analytics..
 if prompt_to_process:
     # Add user message to history
     st.session_state.messages.append({"role": "user", "content": prompt_to_process})
-    
+    with st.chat_message("user"):
+        st.markdown(prompt_to_process)
+
     # Show spinner while waiting for a response
     with st.spinner("The assistant is thinking..."):
         agent_response = asyncio.run(get_agent_response_async(
@@ -200,8 +209,49 @@ if prompt_to_process:
             user_id=USER_ID,
             session_id=st.session_state.session_id
         ))
-    
-    # Add agent response to history
+
+    # Add agent text response to history and display it
     st.session_state.messages.append({"role": "assistant", "content": agent_response})
-    # Rerun the page to display the new messages
-    st.rerun()
+    with st.chat_message("assistant"):
+        st.markdown(agent_response)
+
+        # --- DISCOVER AND DISPLAY ARTIFACTS ---
+        try:
+            # 1. List all artifact keys (filenames) in the current session
+            artifact_keys = asyncio.run(runner.artifact_service.list_artifact_keys(
+                app_name=runner.app_name,
+                user_id=USER_ID,
+                session_id=st.session_state.session_id,
+            ))
+
+            # 2. Filter for images created by the code executor
+            image_keys = [key for key in artifact_keys if key.startswith('code_execution_image_') and key.endswith('.png')]
+
+            # 3. Load and display each found image
+            if not image_keys:
+                 pass
+            else:
+                for key in image_keys:
+                    loaded_artifact = asyncio.run(runner.artifact_service.load_artifact(
+                        app_name=runner.app_name,
+                        user_id=USER_ID,
+                        session_id=st.session_state.session_id,
+                        filename=key
+                    ))
+                    if loaded_artifact:
+                        st.image(
+                            loaded_artifact.inline_data.data,
+                            caption=f"Visualization: {key}",
+                            use_container_width=True
+                        )
+                        # 4. (Optional but recommended) Clean up by deleting the artifact
+                        asyncio.run(runner.artifact_service.delete_artifact(
+                            app_name=runner.app_name,
+                            user_id=USER_ID,
+                            session_id=st.session_state.session_id,
+                            filename=key
+                        ))
+
+        except Exception as e:
+            # Log for debugging
+            st.info(f"Failed to load or display artifact: {e}", icon="⚠️")

@@ -1,7 +1,13 @@
+google-cloud-aiplatform
+google-cloud-storage 
 google-cloud-bigquery
 google-adk==1.14.0
 google-genai
 toolbox-core==0.4.0
 psycopg[binary]
 psycopg2-binary
+python-dotenv
+matplotlib
+seaborn
+pandas
 streamlit

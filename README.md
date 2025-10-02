@@ -7,6 +7,8 @@ The application is built using **Streamlit** for the user interface, Google's **
 ## Features
 - **Conversational Interface**: An intuitive chat application built with Streamlit.
 
+- **Hierarchical Agent System**: A multi-agent architecture where a root agent delegates tasks to specialized agents for operations, analytics, and data visualization.
+
 - **Operational Capabilities**:
 
     - Find available rooms based on dates and room types.
@@ -19,26 +21,63 @@ The application is built using **Streamlit** for the user interface, Google's **
 
     - Analyze the top-performing booking channels over a specific period.
 
-- **Persistent Chat Sessions**: Uses a PostgreSQL database to store and manage user chat sessions, allowing for stateful conversations.
+- **Dynamic Chart Generation**: Automatically generates and displays charts (e.g., bar charts for revenue) using a dedicated visualization agent.
 
-- **Containerized & Deployable**: Includes a Dockerfile and cloudbuild.yaml for easy containerization and deployment to Google Cloud.
+- **Persistent Sessions & Artifacts**: 
+
+    - Uses a **PostgreSQL** database to store and manage user chat sessions, allowing for stateful conversations.
+
+    - Leverages **Google Cloud Storage (GCS)** via the `GcsArtifactService` to handle file artifacts (like generated charts) in a scalable, production-ready manner.
+
+- **Containerized & Deployable**: Includes a Dockerfile and `cloudbuild.yaml` for easy containerization and deployment to Google Cloud.
 
 ## Project Structure
+This repository is organized to separate concerns, making it modular and scalable. Each file and directory has a distinct role:
+
 ```
 hotel-mcp-bigquery-postgresql/
 ├── hotel_agent_app/
-│   └── agent.py         # Core ADK agent definition and instructions.
+│   ├── sub_agents
+│   │   ├── data_visualization
+│   │   │   ├──__init__.py
+│   │   │   └──agent.py
+│   │   ├── hotel_analytics
+│   │   │   ├──__init__.py
+│   │   │   └──agent.py
+│   │   └── hotel_operation
+│   │       ├──__init__.py
+│   │       └──agent.py             
+│   ├──__init__.py      
+│   ├── agent.py        
+│   └── tools.py         
 ├── mcp-toolbox/
-│   └── tools.yaml       # Defines agent's skills (tools) via MCP.
-├── .env                 # Local environment variables (credentials, configs).
-├── README.md            # This project overview file.
-├── .gitignore           # Specifies files for Git to ignore.
-├── cloudbuild.yaml      # Configuration for Google Cloud Build.
-├── Dockerfile           # Instructions to build the application container image.
-├── app.py               # The main Streamlit frontend application.
-├── notebook.ipynb       # Jupyter notebook for testing and experimentation.
+│   └── tools.yaml
+├── README.md            
+├── .gitignore           
+├── cloudbuild.yaml      
+├── Dockerfile           
+├── app.py               
+├── notebook.ipynb       
 └── requirements.txt     # List of Python dependencies.
 ```
+
+- `hotel_agent_app/`: The main Python package for the AI agent.
+
+    - `sub_agents/`: Contains the specialized "worker" agents for specific tasks.
+
+    - `agent.py`: Defines the main "root" agent which acts as a router, delegating tasks to the appropriate sub-agent.
+
+    - `tools.py`: A utility script that initializes and configures the MCP Toolbox client.
+
+- `mcp-toolbox/tools.yaml`: Defines the agent's database skills. It uses the Model Context Protocol (MCP) to map natural language descriptions to specific SQL queries.
+
+- `app.py`: The user-facing frontend built with Streamlit. It creates the chat UI, manages the conversation flow, and handles the display of text and image artifacts returned by the agent.
+
+- `Dockerfile` & `cloudbuild.yaml`: Files for DevOps. Dockerfile packages the application into a container, and cloudbuild.yaml automates the build/deployment process on Google Cloud.
+
+- `requirements.txt`: Lists all Python libraries the project depends on.
+
+- `notebook.ipynb`: A Jupyter Notebook for interactive development and testing.
 
 ## Architecture
 ### System Architecture
@@ -52,19 +91,19 @@ hotel-mcp-bigquery-postgresql/
 
 The application uses a modern, decoupled architecture:
 
-- **Frontend**: A Python-based web interface created with **Streamlit** (`app.py`).
+1. **Data Sources**: PostgreSQL (`hotel_db`) is the OLTP database for live operational data, while BigQuery (`hotel_dataset`) is the OLAP data warehouse for analytics.
 
-- **Agent Logic**: The core conversational agent is defined in `hotel_agent_app/agent.py` using the **Google Agent Development Kit (ADK)**.
+2. **Tooling Ecosystem**: The MCP Server (on Cloud Run) acts as a secure API gateway to the databases.
 
-- **Tooling Layer**: The agent's capabilities (tools) are defined using the **Model Context Protocol (MCP)**, allowing it to execute SQL queries against the databases.
+3. **Orchestration Layer**: The Hotel Agent (on Cloud Run) manages the conversation, deciding which tool or sub-agent to use.
 
-- **Databases**:
+4. Session & Artifact Management:
 
-    - **PostgreSQL**: Serves as the OLTP (Online Transaction Processing) database for operational data like room status and bookings. It also stores the chat session history.
+    - A PostgreSQL database (`hotel_session_db`) stores conversation history.
 
-    - **Google BigQuery**: Serves as the OLAP (Online Analytical Processing) data warehouse for running fast, complex analytical queries.
+    - Google Cloud Storage is used by the `GcsArtifactService` to manage file artifacts (like charts) generated during code execution.
 
-- **Session Management**: The `DatabaseSessionService` from the ADK is used to persist chat history in the PostgreSQL database.
+5. DevOps & AI: The system is automated via a CI/CD pipeline (Cloud Build), with containers in Artifact Registry. The core intelligence is a Gemini model on Vertex AI.
 
 ## Reference
 
