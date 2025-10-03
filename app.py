@@ -121,17 +121,19 @@ def setup_adk_runner():
 runner, session_service = setup_adk_runner()
 USER_ID = "hotel_user"
 
+# --- Use Streamlit's session state to manage a unique session ID ---
+if "session_id" not in st.session_state:
+    st.session_state.session_id = f"streamlit_session_{datetime.datetime.now().timestamp()}"
+SESSION_ID = st.session_state.session_id
+
+
 # --- Initialize ADK Session (only once per app start) ---
 if "session_initialized" not in st.session_state:
     try:
-        # Generate a unique session ID for this specific browser session
-        session_id = f"st_session_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
-        st.session_state.session_id = session_id
-
         asyncio.run(session_service.create_session(
             app_name=runner.app_name,
             user_id=USER_ID,
-            session_id=st.session_state.session_id,
+            session_id=SESSION_ID,
             state={
                 "current_date": get_current_date(),
                 "analytics_summary": "",  
@@ -139,41 +141,75 @@ if "session_initialized" not in st.session_state:
                 }
         ))
         st.session_state.session_initialized = True
+        st.session_state.messages = [{"role": "assistant", "content": "Welcome to the Hotel Management Assistant! How can I help you?"}]
     except Exception as e:
         st.error(f"Failed to initialize the conversation session: {e}")
         st.stop()
 
-# --- Async function to run the agent ---
-async def get_agent_response_async(prompt, runner, user_id, session_id):
-    """Runs the ADK agent asynchronously and returns the final response."""
+# --- NEW: Combined async function to get response and artifacts ---
+async def get_agent_response_and_artifacts_async(prompt, runner, user_id, session_id):
+    """Runs the ADK agent and also fetches any generated image artifacts."""
     content = genai_types.Content(role='user', parts=[genai_types.Part(text=prompt)])
     final_response_text = "Sorry, an error occurred while processing your request."
+    final_image_data = None
 
+    # 1. Run the agent to get the text response
     async for event in runner.run_async(user_id=user_id, session_id=session_id, new_message=content):
         if event.is_final_response():
             if event.content and event.content.parts:
                 final_response_text = event.content.parts[0].text
             break
-    return final_response_text
+    
+    # 2. After the agent run, check for artifacts
+    try:
+        artifact_keys = await runner.artifact_service.list_artifact_keys(
+            app_name=runner.app_name,
+            user_id=user_id,
+            session_id=session_id,
+        )
+        image_keys = [key for key in artifact_keys if key.startswith('code_execution_image_') and key.endswith('.png')]
+
+        if image_keys:
+            # Load the most recent image artifact
+            key = image_keys[-1]
+            loaded_artifact = await runner.artifact_service.load_artifact(
+                app_name=runner.app_name,
+                user_id=user_id,
+                session_id=session_id,
+                filename=key
+            )
+            if loaded_artifact:
+                final_image_data = loaded_artifact.inline_data.data
+                # Clean up by deleting the artifact
+                await runner.artifact_service.delete_artifact(
+                    app_name=runner.app_name,
+                    user_id=user_id,
+                    session_id=session_id,
+                    filename=key
+                )
+    except Exception as e:
+        # Log for debugging, but don't show an error to the user
+        st.error(f"Artifact discovery/loading failed: {e}",icon="🚨")
+
+    return {"text": final_response_text, "image_data": final_image_data}
+
 
 # --- Main Title ---
 st.title("🏨 Hotel Management Assistant")
 st.markdown("Ask about room availability, bookings, or business analytics.")
 
-# --- Initialize Chat History ---
-if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Welcome to the Hotel Management Assistant! How can I help you?"}]
-
 # --- Display existing Chat History ---
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
+        # NEW: Check if the message object has image data and display it
+        if message.get("image_data"):
+            st.image(message["image_data"], use_container_width=True)
 
 # --- Logic to process new input ---
 prompt_to_process = None
 
-# Display example question buttons only at the start of the conversation
-
+# Display example question buttons
 st.markdown("---")
 st.caption("Or, start with one of these questions:")
 col1, col2 = st.columns(2)
@@ -195,63 +231,27 @@ if col2.button(example_questions[3], use_container_width=True):
 if chat_input_prompt := st.chat_input("Ask about rooms, bookings, or analytics..."):
     prompt_to_process = chat_input_prompt
 
+# --- UPDATED: Main processing block ---
 if prompt_to_process:
     # Add user message to history
     st.session_state.messages.append({"role": "user", "content": prompt_to_process})
-    with st.chat_message("user"):
-        st.markdown(prompt_to_process)
 
-    # Show spinner while waiting for a response
+    # Show spinner while getting the complete agent response (text + image)
     with st.spinner("The assistant is thinking..."):
-        agent_response = asyncio.run(get_agent_response_async(
+        response_data = asyncio.run(get_agent_response_and_artifacts_async(
             prompt=prompt_to_process,
             runner=runner,
             user_id=USER_ID,
-            session_id=st.session_state.session_id
+            session_id=SESSION_ID
         ))
 
-    # Add agent text response to history and display it
-    st.session_state.messages.append({"role": "assistant", "content": agent_response})
-    with st.chat_message("assistant"):
-        st.markdown(agent_response)
+    # Create a single assistant message with both text and image data
+    assistant_message = {
+        "role": "assistant",
+        "content": response_data["text"],
+        "image_data": response_data["image_data"]
+    }
+    st.session_state.messages.append(assistant_message)
 
-        # --- DISCOVER AND DISPLAY ARTIFACTS ---
-        try:
-            # 1. List all artifact keys (filenames) in the current session
-            artifact_keys = asyncio.run(runner.artifact_service.list_artifact_keys(
-                app_name=runner.app_name,
-                user_id=USER_ID,
-                session_id=st.session_state.session_id,
-            ))
-
-            # 2. Filter for images created by the code executor
-            image_keys = [key for key in artifact_keys if key.startswith('code_execution_image_') and key.endswith('.png')]
-
-            # 3. Load and display each found image
-            if not image_keys:
-                 pass
-            else:
-                for key in image_keys:
-                    loaded_artifact = asyncio.run(runner.artifact_service.load_artifact(
-                        app_name=runner.app_name,
-                        user_id=USER_ID,
-                        session_id=st.session_state.session_id,
-                        filename=key
-                    ))
-                    if loaded_artifact:
-                        st.image(
-                            loaded_artifact.inline_data.data,
-                            caption=f"Visualization: {key}",
-                            use_container_width=True
-                        )
-                        # 4. (Optional but recommended) Clean up by deleting the artifact
-                        asyncio.run(runner.artifact_service.delete_artifact(
-                            app_name=runner.app_name,
-                            user_id=USER_ID,
-                            session_id=st.session_state.session_id,
-                            filename=key
-                        ))
-
-        except Exception as e:
-            # Log for debugging
-            st.info(f"Failed to load or display artifact: {e}", icon="⚠️")
+    # Rerun the app to display the latest messages
+    st.rerun()
